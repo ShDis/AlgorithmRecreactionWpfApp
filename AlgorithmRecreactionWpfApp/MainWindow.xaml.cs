@@ -26,6 +26,7 @@ namespace AlgorithmRecreactionWpfApp
 
             OriginalAlgorithm();
 
+            T_values.Sort((x,y) => x.Unit.CompareTo(y.Unit));
             mainDatagrid.ItemsSource = T_values;
         }
 
@@ -74,15 +75,30 @@ namespace AlgorithmRecreactionWpfApp
                 this.unit = unit;
                 this.value = value;
             }
-            private string parameter; // показатель
-            private string resource; // ресурс
-            private int year; // год
-            private string unit; // единица измерения
-            private double value; // значение
+            private string parameter;
+            private string resource;
+            private int year;
+            private string unit;
+            private double value;
+            /// <summary>
+            /// показатель
+            /// </summary>
             public string Parameter { get { return parameter; } set { parameter = value; } }
+            /// <summary>
+            /// ресурс
+            /// </summary>
             public string Resource { get { return resource; } set { resource = value; } }
+            /// <summary>
+            /// год
+            /// </summary>
             public int Year { get { return year;} set { year = value; } }
+            /// <summary>
+            /// единица измерения
+            /// </summary>
             public string Unit { get { return unit; } set { unit = value; } }
+            /// <summary>
+            /// значение
+            /// </summary>
             public double Value { get { return value; } set { this.value = value; } }
         }
 
@@ -165,11 +181,11 @@ namespace AlgorithmRecreactionWpfApp
                         условию [[Значение поля «Показатель» = I] и [Значение поля «Ресурс» = R] и [Значение
                         поля «Год» = Y]];*/
                         List<TotalFinalConsumptionTableElem> M_values = new List<TotalFinalConsumptionTableElem>();
-                        foreach (TotalFinalConsumptionTableElem item in T_values)
+                        foreach (var item in T_values)
                         {
                             if (item.Parameter == P_indicators[i])
-                                if (item.Resource == P_resources[i])
-                                    if (item.Year == P_years[i])
+                                if (item.Resource == P_resources[r])
+                                    if (item.Year == P_years[y])
                                         M_values.Add(item);
                         }
                         /*5.1.1.2. Получить M_calculated – массив записей T_multiplication, каждая из которых
@@ -185,12 +201,14 @@ namespace AlgorithmRecreactionWpfApp
                                 {
                                     bool secondCheck = true;
                                     foreach (var itemMvalSecondCheck in M_values)
+                                    {
                                         if (itemMult.CalculationUnit == itemMvalSecondCheck.Unit)
                                         {
                                             secondCheck = false;
                                             break;
                                         }
-                                    if (secondCheck && M_values.Count > 0)
+                                    }
+                                    if (secondCheck)
                                         M_calculated.Add(itemMult);
                                 }
                             }
@@ -204,16 +222,18 @@ namespace AlgorithmRecreactionWpfApp
                         {
                             foreach (var itemMval in M_values)
                             {
-                                if (itemMult.BaseUnit == itemMval.Unit)
+                                if (itemMult.CalculationUnit == itemMval.Unit)
                                 {
                                     bool secondCheck = true;
                                     foreach (var itemMvalSecondCheck in M_values)
+                                    {
                                         if (itemMult.BaseUnit == itemMvalSecondCheck.Unit)
                                         {
                                             secondCheck = false;
                                             break;
                                         }
-                                    if (secondCheck && M_values.Count > 0)
+                                    }
+                                    if (secondCheck)
                                         M_based.Add(itemMult);
                                 }
                             }
@@ -231,12 +251,14 @@ namespace AlgorithmRecreactionWpfApp
                                 {
                                     bool secondCheck = true;
                                     foreach (var itemMvalSecondCheck in M_values)
+                                    {
                                         if (itemConv.ResultingUnit == itemMvalSecondCheck.Unit)
                                         {
                                             secondCheck = false;
                                             break;
                                         }
-                                    if (secondCheck && M_values.Count > 0)
+                                    }
+                                    if (secondCheck)
                                         M_result.Add(itemConv);
                                 }
                             }
@@ -262,9 +284,9 @@ namespace AlgorithmRecreactionWpfApp
                                         {
                                             values.Add(
                                                 new TotalFinalConsumptionTableElem(
-                                                    y, 
+                                                    P_years[y], 
                                                     itemCalc.CalculationUnit, 
-                                                    itemMval.Value * Math.Pow(10.0, Math.E)
+                                                    itemMval.Value * Math.Pow(10.0, itemCalc.Power)
                                                     )
                                                 );
                                         }
@@ -292,9 +314,9 @@ namespace AlgorithmRecreactionWpfApp
                                         {
                                             values.Add(
                                                 new TotalFinalConsumptionTableElem(
-                                                    y, 
+                                                    P_years[y], 
                                                     itemBased.BaseUnit, 
-                                                    itemMval.Value * Math.Pow(10.0, -Math.E)
+                                                    itemMval.Value * Math.Pow(10.0, -itemBased.Power)
                                                     )
                                                 );
                                         }
@@ -321,7 +343,7 @@ namespace AlgorithmRecreactionWpfApp
                                         {
                                             values.Add(
                                                 new TotalFinalConsumptionTableElem(
-                                                    y,
+                                                    P_years[y],
                                                     itemMres.ResultingUnit,
                                                     itemMval.Value * itemMres.Coef
                                                     )
@@ -333,6 +355,7 @@ namespace AlgorithmRecreactionWpfApp
                                 результирующих единицах измерения, перейти в 5.1.1.1;*/
                                 T_values.AddRange(values);
                             }
+                            y--; // переход в 5.1.1.1
                         }
                         /*5.1.2. Если по всем Y из P_years расчет завершен, то перейти в 5.2, иначе перейти в 5.1.1;*/
                     }
