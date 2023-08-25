@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -25,11 +26,20 @@ namespace AlgorithmRecreactionWpfApp
         {
             InitializeComponent();
 
-            OriginalAlgorithm();
+            var w = new Stopwatch();
+            w.Start();
+            //OriginalAlgorithm(); // ориг алгоритм
+            ImproovedAlgorithm(); // немного улучшенный
+            w.Stop();
 
+            // сортировка
             T_values.Sort((x,y) => x.Unit.CompareTo(y.Unit));
+            // связка данных
             mainDatagrid.ItemsSource = T_values;
+            // вывод количества элементов
             Debug.WriteLine(T_values.Count);
+            // вывод времени вычисления
+            Debug.WriteLine(w.Elapsed);
         }
 
         public class MultiplicationTableElem
@@ -67,7 +77,7 @@ namespace AlgorithmRecreactionWpfApp
 
         }
 
-        public class TotalFinalConsumptionTableElem
+        public class TotalFinalConsumptionTableElem : IComparable
         {
             public TotalFinalConsumptionTableElem(int year, string unit, double value)
             {
@@ -102,6 +112,22 @@ namespace AlgorithmRecreactionWpfApp
             /// значение
             /// </summary>
             public double Value { get { return value; } set { this.value = value; } }
+            /// <summary>
+            /// сравнение (незавершенное, без учета value)
+            /// </summary>
+            /// <param name="obj"></param>
+            /// <returns></returns>
+            /// <exception cref="ArgumentException"></exception>
+            public int CompareTo(object obj)
+            {
+                TotalFinalConsumptionTableElem other = obj as TotalFinalConsumptionTableElem;
+                if (other == null)
+                    throw new ArgumentException("Wrong type");
+                if (this.parameter == other.parameter && this.year == other.year && this.resource == other.resource && this.unit == other.unit)
+                    return 0;
+                // тут можно адекватно завершить сортировку, но
+                return 1;
+            }
         }
 
         public List<MultiplicationTableElem> T_multiplication = new List<MultiplicationTableElem>()
@@ -372,6 +398,133 @@ namespace AlgorithmRecreactionWpfApp
                         /*5.1.2. Если по всем Y из P_years расчет завершен, то перейти в 5.2, иначе перейти в 5.1.1;*/
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Другой вариант алгоритма
+        /// </summary>
+        public void ImproovedAlgorithm()
+        {
+            /*Получить P_indicators – параметр запуска расчета, массив записей таблицы T_indicators;*/
+            List<string> P_indicators = new List<string>() { "TFC" };
+            /*Получить P_resources – параметр запуска расчета, массив записей таблицы T_resources;*/
+            List<string> P_resources = new List<string>() { "Природный газ" };
+            /*Получить P_years – параметра запуска расчета, массив записей таблицы T_years;*/
+            List<int> P_years = new List<int>() { 2017, 2018, 2019, 2020, 2021 };
+
+            // получаем изначальные данные таблицы, на которых необходимо провести расчеты
+            List<TotalFinalConsumptionTableElem> startValues = new List<TotalFinalConsumptionTableElem>();
+            foreach (var item in T_values)
+                for (int i = 0; i < P_indicators.Count; i++)
+                    for (int r = 0; r < P_resources.Count; r++)
+                        for (int y = 0; y < P_years.Count; y++)
+                            if (item.Parameter == P_indicators[i])
+                                if (item.Resource == P_resources[r])
+                                    if (item.Year == P_years[y])
+                                        startValues.Add(item);
+
+            // запускаем рекурсивный просчет
+            List<TotalFinalConsumptionTableElem> finalValues = new List<TotalFinalConsumptionTableElem>();
+            RecursiveCheck(ref finalValues, startValues);
+            T_values = finalValues;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="finalValues">Ссылка на все элементы, которые затем заменят T_Values</param>
+        /// <param name="valuesToCheck">Новые просчитанные данные таблицы, по которым будет поиск следующих данных, после чего они добавятся в финальные</param>
+        private void RecursiveCheck(ref List<TotalFinalConsumptionTableElem> finalValues, List<TotalFinalConsumptionTableElem> valuesToCheck)
+        {
+            SortedSet<TotalFinalConsumptionTableElem> nextValuesToCheck = new SortedSet<TotalFinalConsumptionTableElem>();
+            foreach (var itemToCheck in valuesToCheck)
+            {
+                // проверка схожестей ЕИ в T_multiplication
+                foreach (var itemMult in T_multiplication)
+                {
+                    if (itemToCheck.Unit == itemMult.CalculationUnit)
+                    {
+                        bool extraCheck = true;
+                        foreach (var itemToSecondCheck in finalValues)
+                        {
+                            if (itemMult.BaseUnit == itemToSecondCheck.Unit && itemToSecondCheck.Year == itemToCheck.Year) // на самом деле было бы неплохо каким-то образом сгруппировать все по годам, чтобы каждый раз не делать лишних проверок
+                            {
+                                extraCheck = false;
+                                break;
+                            }
+                        }
+                        if (extraCheck)
+                        {
+                            nextValuesToCheck.Add(
+                            new TotalFinalConsumptionTableElem(
+                                itemToCheck.Year,
+                                itemMult.BaseUnit,
+                                itemToCheck.Value * Math.Pow(10.0, -itemMult.Power)
+                                )
+                            );
+                        }
+                    }
+                }
+                foreach (var itemMult in T_multiplication)
+                {
+                    if (itemToCheck.Unit == itemMult.BaseUnit)
+                    {
+                        bool extraCheck = true;
+                        foreach (var itemToSecondCheck in finalValues)
+                        {
+                            if (itemMult.CalculationUnit == itemToSecondCheck.Unit && itemToSecondCheck.Year == itemToCheck.Year)
+                            {
+                                extraCheck = false;
+                                break;
+                            }
+                        }
+                        if (extraCheck)
+                        {
+                            nextValuesToCheck.Add(
+                            new TotalFinalConsumptionTableElem(
+                                itemToCheck.Year,
+                                itemMult.CalculationUnit,
+                                itemToCheck.Value * Math.Pow(10.0, itemMult.Power)
+                                )
+                            );
+                        }
+                    }
+                }
+                // проверка схожестей ЕИ в T_convertation
+                foreach (var itemConv in T_convertation)
+                {
+                    if (itemToCheck.Unit == itemConv.OriginalUnit)
+                    {
+                        bool extraCheckCompleted = true;
+                        foreach (var itemToSecondCheck in finalValues)
+                        {
+                            if (itemConv.ResultingUnit == itemToSecondCheck.Unit && itemToSecondCheck.Year == itemToCheck.Year)
+                            {
+                                extraCheckCompleted = false;
+                                break;
+                            }
+                        }
+                        // вот здесь была доп проверка на случай если такой результат уже был достигнут - не нужна, тк nextValuesToCheck является множеством
+                        if (extraCheckCompleted)
+                        {
+                            nextValuesToCheck.Add(
+                            new TotalFinalConsumptionTableElem(
+                                itemToCheck.Year,
+                                itemConv.ResultingUnit,
+                                itemToCheck.Value * itemConv.Coef
+                                )
+                            );
+                        }
+                    }
+                }
+            }
+            // добавление значений по которым были обнаружены новые значения
+            finalValues.AddRange(valuesToCheck);
+            // продолжение рекурсии
+            if (nextValuesToCheck.Count > 0)
+            {
+                RecursiveCheck(ref finalValues, nextValuesToCheck.ToList());
             }
         }
     }
