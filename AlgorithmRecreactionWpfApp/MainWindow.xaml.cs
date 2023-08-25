@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -28,6 +29,7 @@ namespace AlgorithmRecreactionWpfApp
 
             T_values.Sort((x,y) => x.Unit.CompareTo(y.Unit));
             mainDatagrid.ItemsSource = T_values;
+            Debug.WriteLine(T_values.Count);
         }
 
         public class MultiplicationTableElem
@@ -258,6 +260,16 @@ namespace AlgorithmRecreactionWpfApp
                                             break;
                                         }
                                     }
+                                    // FIX START
+                                    foreach (var itemDublicationCheck in M_calculated) 
+                                    {
+                                        if (itemConv.ResultingUnit == itemDublicationCheck.CalculationUnit)
+                                        {
+                                            secondCheck = false;
+                                            break;
+                                        }
+                                    }
+                                    // FIX END
                                     if (secondCheck)
                                         M_result.Add(itemConv);
                                 }
